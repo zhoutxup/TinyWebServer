@@ -4,7 +4,9 @@
 #include <sys/time.h>
 #include <stdarg.h>
 #include <pthread.h>
+#include <iostream>
 
+using namespace std;
 
 Log::Log() {
     m_count = 0;
@@ -109,6 +111,11 @@ void Log::write_log(int level, const char * format, ...) {
         snprintf(tail, 16, "%d_%02d_%02d_", my_tm.tm_year + 1900, my_tm.tm_mon + 1, my_tm.tm_mday);//以日期作为文件名
 
         if(m_today != my_tm.tm_mday) {
+            snprintf(new_log, 255, "%s%s%s", dir_name, tail, log_name);
+            m_today = my_tm.tm_mday;
+            m_count = 0;
+        }
+        else {
             snprintf(new_log, 255, "%s%s%s.%lld", dir_name, tail, log_name, m_count / m_split_lines);
         }
 
@@ -122,19 +129,15 @@ void Log::write_log(int level, const char * format, ...) {
 
     std::string log_str;
     m_mutex.lock();
-
-    int n = snprintf(m_buf, 48, "%d-%02d-%02d %02d:%02d%02d.%061d %s ",
+    int n = snprintf(m_buf, 48, "%d-%02d-%02d %02d:%02d:%02d.%06ld %s ",
                     my_tm.tm_year + 1900, my_tm.tm_mon + 1, my_tm.tm_mday,
                     my_tm.tm_hour, my_tm.tm_min, my_tm.tm_sec, now.tv_usec, s);
-
     int m = vsnprintf(m_buf + n, m_log_buf_size - 1, format, valst);
-
     m_buf[n + m] = '\n';
     m_buf[n + m + 1] = '\0';
     log_str = m_buf;
 
     m_mutex.unlock();
-
     if(m_is_asynac && !m_log_queue->full()) {
         m_log_queue->push(log_str);
     }

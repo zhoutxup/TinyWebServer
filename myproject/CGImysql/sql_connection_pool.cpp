@@ -1,6 +1,13 @@
 #include "../lock/locker.h"
 #include <iostream>
 #include "sql_connection_pool.h"
+#include <mysql/mysql.h>
+#include <stdio.h>
+#include <string>
+#include <string.h>
+#include <stdlib.h>
+#include <list>
+#include <pthread.h>
 
 connection_pool::connection_pool() {//构造函数，初始化池内连接的数量
     this->CurConn = 0;
@@ -20,11 +27,10 @@ void connection_pool::init(string url, string user, string password, string data
     this->DataBaseName = databasename;
 
     lock.lock();//接下来要对连接池进行操作，必须保护数据
-
-    for(int i = 0; i < MaxConn; ++i) {
-        MYSQL * con = nullptr;
+    
+    for(int i = 0; i < maxConn; ++i) {
+        MYSQL * con = NULL;
         con = mysql_init(con);
-
         if(con == nullptr) {
             cout << "Error: " << mysql_error(con);
             exit(1);
@@ -83,6 +89,7 @@ bool connection_pool::ReleaseConnection(MYSQL * conn) {
     --CurConn;
 
     lock.unlock();
+    reserve.post();
     return true;
 }
 

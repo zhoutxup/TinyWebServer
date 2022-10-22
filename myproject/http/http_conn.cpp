@@ -2,6 +2,7 @@
 #include <map>
 #include <mysql/mysql.h>
 #include "../log/log.h"
+#include <fstream>
 
 // #define connfdET //边缘触发非阻塞
 #define connfdLT //水平触发阻塞
@@ -32,9 +33,9 @@ void http_conn::initmysql_result(connection_pool * connPool) {//这一步将存�
     
     //在user表中检索username，passwd数据
     if(mysql_query(mysql, "SELECT username,passwd FROM user")) {
-        printf("Process have been here\n");
-        LOG_ERROR("SELECT error:%s\n", mysql_errno(mysql));
+        LOG_ERROR("SELECT error:%s\n", mysql_error(mysql));
     }
+    
     
     //从表中检索完整的结果集
     MYSQL_RES * result = mysql_store_result(mysql);
@@ -152,7 +153,7 @@ void http_conn::init() {
     cgi = 0;
     memset(m_read_buf, '\0', READ_BUFFER_SIZE);
     memset(m_write_buf, '\0', WRITE_BUFFER_SIZE);
-    memset(m_read_buf, '\0', FILENAME_LEN);
+    memset(m_real_file, '\0', FILENAME_LEN);
 }
 
 // 从状态机，用于分析出一行内容
@@ -165,7 +166,7 @@ http_conn::LINE_STATUS http_conn::parse_line() {
             if((m_checked_idx + 1) == m_read_idx) {
                 return LINE_OK;
             }
-            else if(m_read_buf[m_checked_idx++] == '\n') {
+            else if(m_read_buf[m_checked_idx + 1] == '\n') {
                 m_read_buf[m_checked_idx++] = '\0';
                 m_read_buf[m_checked_idx++] = '\0';
                 return LINE_OK;
@@ -250,8 +251,13 @@ http_conn::HTTP_CODE http_conn::parse_request_line(char * text) {
         return BAD_REQUEST;
     }
     if(strncasecmp(m_url, "http://", 7) == 0) {
-        m_url += 8;
+        m_url += 7;
         m_url = strchr(m_url, '/');//url定位到最后一级目录
+    }
+
+    if(strncasecmp(m_url, "https://", 8) == 0) {
+        m_url += 8;
+        m_url = strchr(m_url, '/');
     }
 
     if(!m_url || m_url[0] != '/') {
@@ -554,6 +560,10 @@ bool http_conn::add_response(const char * format, ...) {
     return true;
 }
 
+bool http_conn::add_status_line(int status, const char * title) {
+    return add_response("%s %d %s\r\n", "HTTP/1.1", status, title);
+}
+
 bool http_conn::add_headers(int content_len) {
     add_content_length(content_len);
     add_linger();
@@ -584,8 +594,8 @@ bool http_conn::process_write(HTTP_CODE ret) {
     switch(ret) {
         case INTERNAL_ERROE:
         {
-            http_conn::add_status_line(500, error_500_title);
-            //add_status_line(500, error_500_title);
+            //http_conn::add_status_line(500, error_500_title);
+            add_status_line(500, error_500_title);
             add_headers(strlen(error_500_form));
             if(!add_content(error_500_form)) return false;
             break;
@@ -599,7 +609,7 @@ bool http_conn::process_write(HTTP_CODE ret) {
         }
 
         case FORBIDDEN_REQUEST: {
-            add_status_line(400, error_403_title);
+            add_status_line(403, error_403_title);
             add_headers(strlen(error_403_form));
             if(!add_content(error_403_form)) return false;
             break;
@@ -635,9 +645,9 @@ bool http_conn::process_write(HTTP_CODE ret) {
     return true;
 }
 
-bool http_conn::add_status_line(int status, const char * title) {
-    return add_response("%s %d %s\r\n", "HTTP/1.1", status, title);
-}
+// bool http_conn::add_status_line(int status, const char * title) {
+//     return add_response("%s %d %s\r\n", "HTTP/1.1", status, title);
+// }
 
 void http_conn::process() {
     HTTP_CODE read_ret = process_read();
