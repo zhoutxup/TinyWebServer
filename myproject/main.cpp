@@ -120,8 +120,9 @@ int main(int argc, char * argv[]) {
         return 1;
     }
     
-
+    cout << "error" << endl;
     http_conn * users = new http_conn[MAX_FD];
+    cout << "right" << endl;
     assert(users);
     
 

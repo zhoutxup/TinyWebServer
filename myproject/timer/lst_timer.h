@@ -79,13 +79,14 @@ class sort_timer_lst {//存放定时器的容器，基于升序链表，只用�
 
         void del_timer(util_timer * timer) {
             if(!timer) return ;
-            if(timer == head && timer == nullptr) {
+            if((timer == head) && (timer == tail)) {
                 delete timer;
                 head = nullptr;
                 tail = nullptr;
+                return ;
             }
 
-            if(timer = head) {
+            if(timer == head) {
                 head = head->next;
                 head->prev = nullptr;
                 delete timer;
@@ -144,7 +145,7 @@ class sort_timer_lst {//存放定时器的容器，基于升序链表，只用�
 
             if(!temp) {//遍历整个链表都没有找到，那么就加在最后
                 prev->next = timer;
-                timer->next = prev;
+                timer->prev = prev;
                 timer->next = nullptr;
                 tail = timer;
             }

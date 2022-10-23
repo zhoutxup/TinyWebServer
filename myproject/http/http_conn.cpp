@@ -383,7 +383,7 @@ http_conn::HTTP_CODE http_conn::do_request() {
         name[i - 5] = '\0';
 
         int j = 0;
-        for(int j = i + 10; m_string[i] != '\0'; ++i, ++j) {
+        for(i = i + 10; m_string[i] != '\0'; ++i, ++j) {
             passwd[j] = m_string[i];
         }
         passwd[j] = '\0';
